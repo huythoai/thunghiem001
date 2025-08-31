@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sắp xếp tập hợp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            color: #1f2937;
+        }
+        .container-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        .game-container {
+            background-color: #ffffff;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            padding: 2.5rem;
+            width: 100%;
+            max-width: 900px;
+            text-align: center;
+            border: 2px solid #e2e8f0;
+        }
+        .question-box {
+            background-color: #e0f2fe;
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 2px dashed #90cdf4;
+        }
+        .number-item {
+            cursor: grab;
+            background-color: #4f46e5;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            font-size: 1.25rem;
+            font-weight: bold;
+            transition: transform 0.2s, background-color 0.2s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .number-item:active {
+            cursor: grabbing;
+            transform: scale(1.05);
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+        }
+        .number-dropzone {
+            background-color: #cbd5e1;
+            border: 2px dashed #64748b;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 4rem;
+            margin-top: 1.5rem;
+            position: relative;
+        }
+        .dropzone-item {
+            background-color: #f1f5f9;
+            color: #1f2937;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            font-size: 1.25rem;
+            font-weight: bold;
+            border: 2px solid #94a3b8;
+        }
+        .feedback {
+            position: fixed;
+            top: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 1rem 2rem;
+            border-radius: 9999px;
+            font-weight: bold;
+            color: white;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            z-index: 1000;
+        }
+        .feedback.show {
+            opacity: 1;
+        }
+        .feedback.success {
+            background-color: #10b981;
+        }
+        .feedback.error {
+            background-color: #ef4444;
+        }
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 3rem;
+            border-radius: 1.5rem;
+            text-align: center;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+            transform: scale(0.9);
+            animation: modal-pop 0.3s forwards ease-out;
+        }
+        @keyframes modal-pop {
+            to { transform: scale(1); }
+        }
+        .modal-btn {
+            background-color: #4f46e5;
+            color: white;
+            font-weight: bold;
+            padding: 0.75rem 2rem;
+            border-radius: 9999px;
+            transition: background-color 0.2s;
+            margin-top: 1.5rem;
+        }
+        .modal-btn:hover {
+            background-color: #4338ca;
+        }
+        #start-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container-wrapper">
+        <div class="game-container">
+            <h1 class="text-4xl font-extrabold mb-4 text-indigo-700">Sắp xếp tập hợp</h1>
+            <p class="text-xl mb-6 text-gray-600">Sắp xếp các số sau theo thứ tự tăng dần</p>
+
+            <div id="start-screen">
+                <button id="start-btn" class="modal-btn">Bắt đầu trò chơi</button>
+            </div>
+
+            <div id="game-area" class="hidden">
+                <!-- Nội dung trò chơi sẽ được chèn vào đây bởi JavaScript -->
+            </div>
+            
+            <div id="feedback-message" class="feedback"></div>
+
+        </div>
+    </div>
+    
+    <!-- Modal Kết thúc trò chơi -->
+    <div id="end-game-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4">Hoàn thành!</h2>
+            <p class="text-lg text-gray-600 mb-6" id="end-game-message">Chúc mừng bạn đã hoàn thành tất cả các câu hỏi.</p>
+            <button id="restart-btn" class="modal-btn">Chơi lại</button>
+        </div>
+    </div>
+
+    <script>
+        // Các câu hỏi của trò chơi
+        const allQuestions = [
+            [23, 7, 56, 11, 40],
+            [15, 82, 31, 5, 99],
+            [48, 12, 60, 2, 75],
+            [91, 14, 3, 50, 27],
+            [33, 8, 70, 19, 62],
+            [10, 25, 6, 88, 35],
+            [54, 18, 77, 9, 41],
+            [95, 22, 5, 13, 68],
+            [71, 39, 4, 80, 28],
+            [66, 17, 93, 30, 7]
+        ];
+
+        let currentQuestionIndex = 0;
+        let isDragging = false;
+        let draggedItem = null;
+
+        // Khởi tạo Tone.js
+        const synth = new Tone.Synth().toDestination();
+        const successSynth = new Tone.Synth({
+            oscillator: { type: "triangle" },
+            envelope: {
+                attack: 0.005,
+                decay: 0.1,
+                sustain: 0.1,
+                release: 0.1
+            }
+        }).toDestination();
+        const errorSynth = new Tone.Synth({
+            oscillator: { type: "square" },
+            envelope: {
+                attack: 0.01,
+                decay: 0.2,
+                sustain: 0,
+                release: 0.1
+            }
+        }).toDestination();
+        
+        // Lấy các phần tử DOM
+        const startBtn = document.getElementById('start-btn');
+        const startScreen = document.getElementById('start-screen');
+        const gameArea = document.getElementById('game-area');
+        const feedbackMessage = document.getElementById('feedback-message');
+        const endGameModal = document.getElementById('end-game-modal');
+        const restartBtn = document.getElementById('restart-btn');
+
+        // Hàm phát âm thanh khi đúng
+        function playSuccessSound() {
+            successSynth.triggerAttackRelease("C5", "8n");
+            successSynth.triggerAttackRelease("E5", "8n", "+0.1");
+            successSynth.triggerAttackRelease("G5", "8n", "+0.2");
+        }
+
+        // Hàm phát âm thanh khi sai
+        function playErrorSound() {
+            errorSynth.triggerAttackRelease("C3", "8n");
+            errorSynth.triggerAttackRelease("C#2", "8n", "+0.1");
+        }
+
+        // Hàm phát âm thanh khi hoàn thành
+        function playWinSound() {
+            synth.triggerAttackRelease("C4", "8n");
+            synth.triggerAttackRelease("E4", "8n", "+0.2");
+            synth.triggerAttackRelease("G4", "8n", "+0.4");
+            synth.triggerAttackRelease("C5", "8n", "+0.6");
+        }
+
+        // Hàm xáo trộn mảng
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // Tạo câu hỏi và hiển thị
+        function createQuestion() {
+            if (currentQuestionIndex >= allQuestions.length) {
+                showEndGameModal();
+                playWinSound();
+                return;
+            }
+
+            // Lấy tập hợp số của câu hỏi hiện tại và tạo bản sao để xáo trộn
+            const numbers = allQuestions[currentQuestionIndex];
+            const sortedNumbers = [...numbers].sort((a, b) => a - b);
+            const shuffledNumbers = shuffleArray([...numbers]);
+
+            // Tạo mã HTML cho câu hỏi
+            let questionHTML = `
+                <div class="question-box">
+                    <p class="text-2xl font-bold mb-4 text-gray-700">Câu ${currentQuestionIndex + 1}</p>
+                    <div id="drag-items" class="flex flex-wrap justify-center gap-4">
+                        ${shuffledNumbers.map(num => `<div class="number-item" data-number="${num}" draggable="true">${num}</div>`).join('')}
+                    </div>
+                    <div id="drop-zone" class="number-dropzone">
+                        ${sortedNumbers.map(num => `<div class="dropzone-item hidden" data-correct-number="${num}"></div>`).join('')}
+                    </div>
+                </div>
+            `;
+            gameArea.innerHTML = questionHTML;
+
+            // Lấy các phần tử kéo thả sau khi đã tạo
+            const dragItems = document.querySelectorAll('.number-item');
+            const dropZone = document.getElementById('drop-zone');
+            const dropzoneItems = document.querySelectorAll('.dropzone-item');
+
+            // Bắt đầu lắng nghe sự kiện kéo và thả
+            dragItems.forEach(item => {
+                item.addEventListener('dragstart', handleDragStart);
+                item.addEventListener('touchstart', handleTouchStart);
+            });
+
+            dropZone.addEventListener('dragover', handleDragOver);
+            dropZone.addEventListener('drop', handleDrop);
+            dropZone.addEventListener('touchmove', handleTouchMove);
+            dropZone.addEventListener('touchend', handleTouchEnd);
+        }
+
+        // Xử lý sự kiện kéo (drag)
+        function handleDragStart(e) {
+            draggedItem = e.target;
+            e.dataTransfer.setData('text/plain', e.target.dataset.number);
+            setTimeout(() => {
+                e.target.classList.add('opacity-50');
+            }, 0);
+        }
+
+        // Xử lý sự kiện kéo qua vùng thả
+        function handleDragOver(e) {
+            e.preventDefault();
+        }
+
+        // Xử lý sự kiện thả
+        function handleDrop(e) {
+            e.preventDefault();
+            const droppedNumber = e.dataTransfer.getData('text/plain');
+            const dropTarget = e.target;
+
+            // Tìm vị trí trống đầu tiên trong vùng thả
+            const dropzoneItems = document.querySelectorAll('.dropzone-item');
+            let firstEmptyDropzone = null;
+            for(let i = 0; i < dropzoneItems.length; i++) {
+                if(dropzoneItems[i].classList.contains('hidden')) {
+                    firstEmptyDropzone = dropzoneItems[i];
+                    break;
+                }
+            }
+
+            if (firstEmptyDropzone) {
+                // Kiểm tra xem số được thả có đúng vị trí không
+                if (firstEmptyDropzone.dataset.correctNumber === droppedNumber) {
+                    firstEmptyDropzone.textContent = droppedNumber;
+                    firstEmptyDropzone.classList.remove('hidden');
+                    draggedItem.remove();
+                    showFeedback('Chính xác!', 'success');
+                    playSuccessSound();
+                    checkIfComplete();
+                } else {
+                    showFeedback('Sai rồi, hãy thử lại.', 'error');
+                    playErrorSound();
+                }
+            }
+            draggedItem.classList.remove('opacity-50');
+        }
+        
+        // Xử lý sự kiện kéo bằng cảm ứng (touch)
+        function handleTouchStart(e) {
+            isDragging = true;
+            draggedItem = e.target;
+            draggedItem.style.position = 'absolute';
+            draggedItem.style.zIndex = '1000';
+            const touch = e.touches[0];
+            const startX = touch.clientX;
+            const startY = touch.clientY;
+            draggedItem.dataset.startX = startX;
+            draggedItem.dataset.startY = startY;
+
+            document.addEventListener('touchmove', handleTouchMove);
+            document.addEventListener('touchend', handleTouchEnd);
+        }
+
+        function handleTouchMove(e) {
+            if (!isDragging) return;
+            e.preventDefault(); // Ngăn cuộn trang
+            const touch = e.touches[0];
+            const newX = touch.clientX;
+            const newY = touch.clientY;
+            
+            // Cập nhật vị trí của phần tử kéo thả
+            draggedItem.style.left = `${newX - draggedItem.offsetWidth / 2}px`;
+            draggedItem.style.top = `${newY - draggedItem.offsetHeight / 2}px`;
+        }
+
+        function handleTouchEnd(e) {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            const touch = e.changedTouches[0];
+            const endX = touch.clientX;
+            const endY = touch.clientY;
+            
+            const dropZone = document.getElementById('drop-zone');
+            const dropZoneRect = dropZone.getBoundingClientRect();
+
+            if (endX >= dropZoneRect.left && endX <= dropZoneRect.right &&
+                endY >= dropZoneRect.top && endY <= dropZoneRect.bottom) {
+                // Thả vào vùng dropzone
+                const dropzoneItems = document.querySelectorAll('.dropzone-item');
+                const droppedNumber = draggedItem.dataset.number;
+                
+                let firstEmptyDropzone = null;
+                for(let i = 0; i < dropzoneItems.length; i++) {
+                    if(dropzoneItems[i].classList.contains('hidden')) {
+                        firstEmptyDropzone = dropzoneItems[i];
+                        break;
+                    }
+                }
+
+                if (firstEmptyDropzone) {
+                    if (firstEmptyDropzone.dataset.correctNumber === droppedNumber) {
+                        firstEmptyDropzone.textContent = droppedNumber;
+                        firstEmptyDropzone.classList.remove('hidden');
+                        draggedItem.remove();
+                        showFeedback('Chính xác!', 'success');
+                        playSuccessSound();
+                        checkIfComplete();
+                    } else {
+                        showFeedback('Sai rồi, hãy thử lại.', 'error');
+                        playErrorSound();
+                    }
+                }
+            } else {
+                // Nếu thả không đúng chỗ, trả về vị trí cũ
+                draggedItem.style.position = '';
+                draggedItem.style.zIndex = '';
+            }
+            draggedItem = null;
+
+            document.removeEventListener('touchmove', handleTouchMove);
+            document.removeEventListener('touchend', handleTouchEnd);
+        }
+        
+        // Kiểm tra xem đã hoàn thành câu hỏi chưa
+        function checkIfComplete() {
+            const dropzoneItems = document.querySelectorAll('.dropzone-item');
+            const isComplete = Array.from(dropzoneItems).every(item => !item.classList.contains('hidden'));
+            
+            if (isComplete) {
+                setTimeout(() => {
+                    currentQuestionIndex++;
+                    createQuestion();
+                }, 1500); // Chờ 1.5s trước khi chuyển câu hỏi
+            }
+        }
+        
+        // Hiển thị thông báo phản hồi
+        function showFeedback(message, type) {
+            feedbackMessage.textContent = message;
+            feedbackMessage.classList.add('show', type);
+            setTimeout(() => {
+                feedbackMessage.classList.remove('show', type);
+            }, 1000);
+        }
+        
+        // Hiển thị modal kết thúc trò chơi
+        function showEndGameModal() {
+            endGameModal.classList.remove('hidden');
+        }
+
+        // Khởi động lại trò chơi
+        restartBtn.addEventListener('click', () => {
+            currentQuestionIndex = 0;
+            endGameModal.classList.add('hidden');
+            createQuestion();
+        });
+
+        // Xử lý nút "Bắt đầu trò chơi"
+        startBtn.addEventListener('click', () => {
+            startScreen.classList.add('hidden');
+            gameArea.classList.remove('hidden');
+            createQuestion();
+        });
+    </script>
+
+</body>
+</html>
